@@ -1,0 +1,113 @@
+{
+  "spec_version": "2026-04-19",
+  "type": "kiwix",
+  "name": "Knowledge Library",
+  "description": "Offline reference content via ZIM files",
+  "dest_dir": "/srv/kiwix/content",
+  "categories": [
+    {
+      "name": "Repair & Survival",
+      "slug": "repair",
+      "icon": "🔧",
+      "description": "Device repair guides and survival references.",
+      "resources": [
+        {
+          "id": "ifixit_en_all",
+          "version": "2025-12",
+          "title": "iFixit",
+          "description": "Repair guides for thousands of devices — electronics, appliances, vehicles.",
+          "url": "https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim",
+          "filename": "ifixit_en_all_2025-12.zim",
+          "size_mb": 2000,
+          "recommended": true
+        },
+        {
+          "id": "zimgit-medicine_en",
+          "version": "2024-08",
+          "title": "Medical Library",
+          "description": "Field and emergency medicine books and guides.",
+          "url": "https://download.kiwix.org/zim/other/zimgit-medicine_en_2024-08.zim",
+          "filename": "zimgit-medicine_en_2024-08.zim",
+          "size_mb": 67,
+          "recommended": true
+        },
+        {
+          "id": "fas-military-medicine_en",
+          "version": "2025-06",
+          "title": "Military Medicine",
+          "description": "Tactical and field medicine manuals.",
+          "url": "https://download.kiwix.org/zim/zimit/fas-military-medicine_en_2025-06.zim",
+          "filename": "fas-military-medicine_en_2025-06.zim",
+          "size_mb": 78,
+          "recommended": false
+        }
+      ]
+    },
+    {
+      "name": "Reference",
+      "slug": "reference",
+      "icon": "📚",
+      "description": "General reference and encyclopedias.",
+      "resources": [
+        {
+          "id": "wikipedia_en_simple_all_mini",
+          "version": "2024-06",
+          "title": "Wikipedia (Simple English)",
+          "description": "Simplified Wikipedia — ideal for resource-constrained devices.",
+          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_mini_2024-06.zim",
+          "filename": "wikipedia_en_simple_all_mini_2024-06.zim",
+          "size_mb": 1000,
+          "recommended": true
+        },
+        {
+          "id": "wikipedia_pt_all_mini",
+          "version": "2024-06",
+          "title": "Wikipedia (Português)",
+          "description": "Wikipedia em português — versão compacta.",
+          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_pt_all_mini_2024-06.zim",
+          "filename": "wikipedia_pt_all_mini_2024-06.zim",
+          "size_mb": 1200,
+          "recommended": true
+        },
+        {
+          "id": "bitcoin_en_all_maxi",
+          "version": "2021-03",
+          "title": "Bitcoin Wiki",
+          "description": "Complete Bitcoin documentation and guides.",
+          "url": "https://download.kiwix.org/zim/other/bitcoin_en_all_maxi_2021-03.zim",
+          "filename": "bitcoin_en_all_maxi_2021-03.zim",
+          "size_mb": 50,
+          "recommended": false
+        }
+      ]
+    },
+    {
+      "name": "Technology",
+      "slug": "technology",
+      "icon": "💻",
+      "description": "Programming, electronics, and technical references.",
+      "resources": [
+        {
+          "id": "stackoverflow_en",
+          "version": "2024-05",
+          "title": "Stack Overflow",
+          "description": "Programming Q&A from Stack Overflow.",
+          "url": "https://download.kiwix.org/zim/stack_exchange/stackoverflow.com_en_all_2024-05.zim",
+          "filename": "stackoverflow.com_en_all_2024-05.zim",
+          "size_mb": 35000,
+          "recommended": false
+        },
+        {
+          "id": "devdocs_en_all",
+          "version": "2025-01",
+          "title": "DevDocs",
+          "description": "API documentation for hundreds of programming languages and frameworks.",
+          "url": "https://download.kiwix.org/zim/zimit/devdocs.io_en_all_2025-01.zim",
+          "filename": "devdocs.io_en_all_2025-01.zim",
+          "size_mb": 400,
+          "recommended": true
+        }
+      ]
+    }
+  ]
+}
