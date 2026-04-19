@@ -8,14 +8,16 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
-COLLECTIONS_DIR = Path(os.environ.get("GRIDLIB_COLLECTIONS_DIR", "/opt/gridlib/collections"))
+COLLECTIONS_DIR = Path(
+    os.environ.get("GRIDLIB_COLLECTIONS_DIR", "/opt/gridlib/collections")
+)
 PORT = int(os.environ.get("GRIDLIB_API_PORT", 9081))
 
 DEST_DIRS = {
     "kiwix": Path(os.environ.get("ZIM_DIR", "/srv/kiwix/content")),
-    "maps":  Path(os.environ.get("MAPS_DIR", "/srv/gridlib/maps")),
+    "maps": Path(os.environ.get("MAPS_DIR", "/srv/gridlib/maps")),
 }
 
 # In-memory download state  { filename: { status, percent, size_mb, downloaded_mb, error? } }
@@ -25,6 +27,7 @@ _procs: dict = {}  # filename → subprocess.Popen
 
 
 # ── Collections ───────────────────────────────────────────────────────────────
+
 
 def load_collections() -> list[dict]:
     result = []
@@ -48,6 +51,7 @@ def installed_files() -> dict[str, list[str]]:
 
 # ── Downloads ─────────────────────────────────────────────────────────────────
 
+
 def _track_progress(filename: str, total_mb: float, dest: Path) -> None:
     total_bytes = total_mb * 1_000_000
     while True:
@@ -57,13 +61,22 @@ def _track_progress(filename: str, total_mb: float, dest: Path) -> None:
             break
         try:
             current = dest.stat().st_size if dest.exists() else 0
-            pct = min(round(current / total_bytes * 100, 1), 99) if total_bytes > 0 else 0
+            pct = (
+                min(round(current / total_bytes * 100, 1), 99) if total_bytes > 0 else 0
+            )
             with _lock:
                 _downloads[filename]["percent"] = pct
                 _downloads[filename]["downloaded_mb"] = round(current / 1_000_000, 1)
         except Exception:
             pass
         time.sleep(1)
+
+
+def _restart_kiwix() -> None:
+    try:
+        subprocess.run(["systemctl", "restart", "kiwix-serve.service"], timeout=10)
+    except Exception:
+        pass
 
 
 def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
@@ -92,7 +105,9 @@ def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
             with _lock:
                 _procs[filename] = proc
 
-            tracker = threading.Thread(target=_track_progress, args=(filename, size_mb, dest), daemon=True)
+            tracker = threading.Thread(
+                target=_track_progress, args=(filename, size_mb, dest), daemon=True
+            )
             tracker.start()
 
             proc.wait()
@@ -105,7 +120,13 @@ def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
                         _downloads[filename]["percent"] = 100
                     else:
                         _downloads[filename]["status"] = "error"
-                        _downloads[filename]["error"] = f"curl exited with code {proc.returncode}"
+                        _downloads[filename]["error"] = (
+                            f"curl exited with code {proc.returncode}"
+                        )
+
+            if proc.returncode == 0 and kind == "kiwix":
+                _restart_kiwix()
+
         except Exception as e:
             with _lock:
                 if filename in _downloads:
@@ -179,10 +200,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/download":
             body = self._body()
-            url      = body.get("url", "")
+            url = body.get("url", "")
             filename = body.get("filename", "")
-            kind     = body.get("kind", "kiwix")
-            size_mb  = float(body.get("size_mb", 0))
+            kind = body.get("kind", "kiwix")
+            size_mb = float(body.get("size_mb", 0))
 
             if not url or not filename:
                 self._send({"error": "url and filename are required"}, 400)
