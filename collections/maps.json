@@ -1,0 +1,85 @@
+{
+  "spec_version": "2026-04-19",
+  "type": "maps",
+  "name": "Offline Maps",
+  "description": "Regional topographic maps in PMTiles format, served directly by nginx.",
+  "dest_dir": "/srv/gridlib/maps",
+  "categories": [
+    {
+      "name": "South America",
+      "slug": "south-america",
+      "icon": "🌎",
+      "description": "Topographic maps for South American countries.",
+      "resources": [
+        {
+          "id": "brazil",
+          "version": "2025-12",
+          "title": "Brazil",
+          "description": "Full topographic map of Brazil.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/brazil_2025-12.pmtiles",
+          "filename": "brazil_2025-12.pmtiles",
+          "size_mb": 1800,
+          "recommended": true
+        },
+        {
+          "id": "argentina",
+          "version": "2025-12",
+          "title": "Argentina",
+          "description": "Full topographic map of Argentina.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/argentina_2025-12.pmtiles",
+          "filename": "argentina_2025-12.pmtiles",
+          "size_mb": 900,
+          "recommended": false
+        },
+        {
+          "id": "colombia",
+          "version": "2025-12",
+          "title": "Colombia",
+          "description": "Full topographic map of Colombia.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/colombia_2025-12.pmtiles",
+          "filename": "colombia_2025-12.pmtiles",
+          "size_mb": 600,
+          "recommended": false
+        },
+        {
+          "id": "chile",
+          "version": "2025-12",
+          "title": "Chile",
+          "description": "Full topographic map of Chile.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/chile_2025-12.pmtiles",
+          "filename": "chile_2025-12.pmtiles",
+          "size_mb": 500,
+          "recommended": false
+        }
+      ]
+    },
+    {
+      "name": "North America",
+      "slug": "north-america",
+      "icon": "🗺️",
+      "description": "Topographic maps for North American regions.",
+      "resources": [
+        {
+          "id": "california",
+          "version": "2025-12",
+          "title": "California",
+          "description": "Topographic map for California.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/california_2025-12.pmtiles",
+          "filename": "california_2025-12.pmtiles",
+          "size_mb": 1100,
+          "recommended": false
+        },
+        {
+          "id": "texas",
+          "version": "2025-12",
+          "title": "Texas",
+          "description": "Topographic map for Texas.",
+          "url": "https://github.com/Crosstalk-Solutions/project-nomad-maps/raw/refs/heads/master/pmtiles/texas_2025-12.pmtiles",
+          "filename": "texas_2025-12.pmtiles",
+          "size_mb": 800,
+          "recommended": false
+        }
+      ]
+    }
+  ]
+}

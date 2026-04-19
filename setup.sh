@@ -22,8 +22,6 @@ command -v kiwix-serve >/dev/null 2>&1 || die "kiwix-serve was not found after i
 
 KIWIX_PORT="${KIWIX_PORT:-8080}"
 ZIM_DIR="${ZIM_DIR:-/srv/kiwix/content}"
-BITCOIN_ZIM_URL="https://download.kiwix.org/zim/other/bitcoin_en_all_maxi_2021-03.zim"
-IFIXIT_ZIM_URL="https://download.kiwix.org/zim/ifixit/ifixit_en_all_2025-12.zim"
 
 info "Ensuring ZIM directory exists: ${ZIM_DIR}"
 mkdir -p "${ZIM_DIR}"
@@ -83,24 +81,6 @@ start_or_restart_kiwix() {
   fi
 }
 
-prompt_yes_no() {
-  local prompt="$1"
-  local answer=""
-
-  if [[ ! -t 0 ]]; then
-    return 1
-  fi
-
-  while true; do
-    read -r -p "${prompt} [y/N] " answer
-    case "${answer}" in
-      [yY]|[yY][eE][sS]) return 0 ;;
-      ""|[nN]|[nN][oO]) return 1 ;;
-      *) echo "Please answer y or n." ;;
-    esac
-  done
-}
-
 ensure_curl() {
   if ! command -v curl >/dev/null 2>&1; then
     info "curl not found; installing curl..."
@@ -108,65 +88,10 @@ ensure_curl() {
   fi
 }
 
-download_zim() {
-  local url="$1"
-  local file="${url##*/}"
-  local path="${ZIM_DIR}/${file}"
-
-  if [[ -f "${path}" ]]; then
-    info "ZIM already exists, skipping: ${path}"
-    return 0
-  fi
-
-  ensure_curl
-  info "Downloading ZIM (this can take a while)..."
-  info "Source: ${url}"
-  info "Destination: ${path}"
-  curl -L --fail --continue-at - --output "${path}" "${url}"
-  return 2
-}
-
 
 setup_kiwix_systemd_service
 
 start_or_restart_kiwix
-
-downloaded_any=0
-
-bitcoin_file="${BITCOIN_ZIM_URL##*/}"
-bitcoin_path="${ZIM_DIR}/${bitcoin_file}"
-if [[ -f "${bitcoin_path}" ]]; then
-  info "Bitcoin ZIM already present, skipping prompt: ${bitcoin_path}"
-else
-  if prompt_yes_no "Do you want to download the Bitcoin wiki ZIM?"; then
-    if download_zim "${BITCOIN_ZIM_URL}"; then
-      true
-    else
-      rc=$?
-      if [[ $rc -eq 2 ]]; then downloaded_any=1; else exit $rc; fi
-    fi
-  fi
-fi
-
-ifixit_file="${IFIXIT_ZIM_URL##*/}"
-ifixit_path="${ZIM_DIR}/${ifixit_file}"
-if [[ -f "${ifixit_path}" ]]; then
-  info "iFixit ZIM already present, skipping prompt: ${ifixit_path}"
-else
-  if prompt_yes_no "Do you want to download the iFixit ZIM?"; then
-    if download_zim "${IFIXIT_ZIM_URL}"; then
-      true
-    else
-      rc=$?
-      if [[ $rc -eq 2 ]]; then downloaded_any=1; else exit $rc; fi
-    fi
-  fi
-fi
-
-if [[ "${downloaded_any}" -eq 1 ]]; then
-  info "New ZIM(s) downloaded; restarting kiwix-serve..."
-  start_or_restart_kiwix
-fi
 
 if zim_present && service_is_active; then
   info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
@@ -234,11 +159,13 @@ install_dashboard() {
     yarn build
   )
 
-  # Copy built dist and the status generator
-  mkdir -p "${DASHBOARD_DEST}"
-  cp -r "${DASHBOARD_SRC}/dist/." "${DASHBOARD_DEST}/"
-  cp "${DASHBOARD_SRC}/generate-status.py" "${DASHBOARD_DEST}/generate-status.py"
-  chmod +x "${DASHBOARD_DEST}/generate-status.py"
+  # Copy built dist, Python services, and collections
+  mkdir -p "${DASHBOARD_DEST}" /opt/gridlib/collections
+  cp -r "${DASHBOARD_SRC}/dist/."           "${DASHBOARD_DEST}/"
+  cp "${DASHBOARD_SRC}/generate-status.py"  "${DASHBOARD_DEST}/generate-status.py"
+  cp "${DASHBOARD_SRC}/api.py"              "${DASHBOARD_DEST}/api.py"
+  cp "${SCRIPT_DIR}/collections/"*.json     /opt/gridlib/collections/
+  chmod +x "${DASHBOARD_DEST}/generate-status.py" "${DASHBOARD_DEST}/api.py"
 
   # Generate initial status.json before starting the daemon
   if [[ ! -f "${DASHBOARD_DEST}/status.json" ]]; then
@@ -246,7 +173,10 @@ install_dashboard() {
     ZIM_DIR="${ZIM_DIR}" timeout 3 python3 "${DASHBOARD_DEST}/generate-status.py" 2>/dev/null || true
   fi
 
-  # nginx site config
+  # Create map storage directory
+  mkdir -p /srv/gridlib/maps
+
+  # nginx site config — serves static files + proxies /api/ to api.py (port 9081)
   cat >/etc/nginx/sites-available/gridlib <<EOF
 server {
     listen ${DASHBOARD_PORT};
@@ -261,6 +191,12 @@ server {
         etag off;
     }
 
+    location /api/ {
+        proxy_pass http://127.0.0.1:9081/;
+        proxy_set_header Host \$host;
+        proxy_read_timeout 10s;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -268,14 +204,12 @@ server {
 EOF
 
   ln -sf /etc/nginx/sites-available/gridlib /etc/nginx/sites-enabled/gridlib
-
-  # Remove default nginx site to avoid port conflicts
   rm -f /etc/nginx/sites-enabled/default
 
   nginx -t && systemctl reload nginx || systemctl restart nginx
   systemctl enable nginx >/dev/null
 
-  # Systemd service for the status generator daemon
+  # Systemd service — status generator (writes status.json every 15s)
   cat >/etc/systemd/system/gridlib-status.service <<EOF
 [Unit]
 Description=GridLib status generator
@@ -293,9 +227,29 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+  # Systemd service — API server (handles downloads, port 9081)
+  cat >/etc/systemd/system/gridlib-api.service <<EOF
+[Unit]
+Description=GridLib API server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 ${DASHBOARD_DEST}/api.py
+Environment=ZIM_DIR=${ZIM_DIR}
+Environment=MAPS_DIR=/srv/gridlib/maps
+Environment=GRIDLIB_COLLECTIONS_DIR=/opt/gridlib/collections
+Environment=GRIDLIB_API_PORT=9081
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
   systemctl daemon-reload
-  systemctl enable gridlib-status >/dev/null
-  systemctl restart gridlib-status
+  systemctl enable gridlib-status gridlib-api >/dev/null
+  systemctl restart gridlib-status gridlib-api
 
   info "Dashboard installed!"
   info "  URL: http://10.3.141.1:${DASHBOARD_PORT}"
