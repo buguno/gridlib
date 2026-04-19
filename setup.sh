@@ -126,101 +126,6 @@ download_zim() {
   return 2
 }
 
-raspap_installed() {
-  # Check if RaspAP is installed by looking for common RaspAP files/directories
-  [[ -d "/etc/raspap" ]] || [[ -f "/etc/hostapd/hostapd.conf" ]] || systemctl list-unit-files | grep -q raspap
-}
-
-configure_raspap_ssid() {
-  local ssid="Pharos"
-  local hostapd_conf="/etc/hostapd/hostapd.conf"
-
-  if [[ ! -f "${hostapd_conf}" ]]; then
-    info "hostapd.conf not found. RaspAP may use a different configuration location."
-    return 0
-  fi
-
-  info "Configuring RaspAP SSID to: ${ssid}..."
-  if grep -q "^ssid=" "${hostapd_conf}"; then
-    sed -i "s/^ssid=.*/ssid=${ssid}/" "${hostapd_conf}"
-  else
-    echo "ssid=${ssid}" >> "${hostapd_conf}"
-  fi
-
-  info "SSID configured."
-}
-
-enable_raspap_ap_mode() {
-  info "Enabling RaspAP Access Point mode..."
-  info "WARNING: This will disconnect Wi-Fi client mode and may disconnect your SSH session."
-
-  # Get SSID and password from hostapd.conf if available (before restarting)
-  local hostapd_conf="/etc/hostapd/hostapd.conf"
-  local ssid="Pharos"
-  local wifi_password=""
-
-  if [[ -f "${hostapd_conf}" ]]; then
-    if grep -q "^ssid=" "${hostapd_conf}"; then
-      ssid=$(grep "^ssid=" "${hostapd_conf}" | cut -d= -f2 | tr -d '"')
-    fi
-    if grep -q "^wpa_passphrase=" "${hostapd_conf}"; then
-      wifi_password=$(grep "^wpa_passphrase=" "${hostapd_conf}" | cut -d= -f2 | tr -d '"')
-    fi
-  fi
-
-  # Show connection information BEFORE starting AP mode
-  info ""
-  info "=== RaspAP Connection Information ==="
-  info "Web Interface:"
-  info "  URL: http://10.3.141.1"
-  info "  Username: admin"
-  info "  Password: secret"
-  info ""
-  info "Wi-Fi Hotspot:"
-  info "  SSID: ${ssid}"
-  if [[ -n "${wifi_password}" ]]; then
-    info "  Password: ${wifi_password}"
-  else
-    info "  Password: (configured in RaspAP settings)"
-  fi
-  info ""
-  info "Your SSH session will be disconnected as the Pi switches to AP mode."
-  info "Connect to the '${ssid}' hotspot to access RaspAP web interface and Kiwix."
-  info ""
-
-  # Stop wpa_supplicant (Wi-Fi client mode) to free up the interface
-  info "Stopping Wi-Fi client mode (wpa_supplicant)..."
-  systemctl stop wpa_supplicant >/dev/null 2>&1 || true
-  systemctl disable wpa_supplicant >/dev/null 2>&1 || true
-
-  # Enable and start hostapd service
-  if systemctl is-enabled hostapd >/dev/null 2>&1; then
-    info "hostapd service already enabled."
-  else
-    systemctl enable hostapd >/dev/null 2>&1 || true
-    info "hostapd service enabled."
-  fi
-
-  # Restart network services that RaspAP depends on
-  info "Restarting network services..."
-  systemctl restart dhcpcd >/dev/null 2>&1 || true
-  systemctl restart dnsmasq >/dev/null 2>&1 || true
-
-  # Start/restart hostapd (this will activate AP mode)
-  info "Starting hostapd service..."
-  systemctl restart hostapd >/dev/null 2>&1 || systemctl start hostapd >/dev/null 2>&1 || true
-
-  # Give it a moment to start
-  sleep 2
-
-  # Check if hostapd is running
-  if systemctl is-active --quiet hostapd; then
-    info "Access Point mode enabled successfully!"
-  else
-    info "Warning: hostapd may not have started correctly. Check logs with: sudo journalctl -u hostapd"
-    info "You may need to configure the AP through the RaspAP web interface at http://10.3.141.1"
-  fi
-}
 
 setup_kiwix_systemd_service
 
@@ -263,30 +168,103 @@ if [[ "${downloaded_any}" -eq 1 ]]; then
   start_or_restart_kiwix
 fi
 
-if prompt_yes_no "Do you want to install RaspAP (wireless router software)?"; then
-  info "Installing RaspAP (wireless router software)..."
-  curl -sL https://install.raspap.com | bash
-
-  configure_raspap_ssid
-
-  if zim_present && service_is_active; then
-    info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
-  else
-    info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
-  fi
-
-  enable_raspap_ap_mode
+if zim_present && service_is_active; then
+  info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
 else
-  info "Skipping RaspAP installation."
-  if raspap_installed; then
-    info "RaspAP is already installed. Configuring and enabling AP mode..."
-    configure_raspap_ssid
-    enable_raspap_ap_mode
+  info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
+fi
+
+# ── Dashboard ──────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DASHBOARD_SRC="${SCRIPT_DIR}/dashboard"
+DASHBOARD_DEST="/opt/gridlib/dashboard"
+DASHBOARD_PORT="${DASHBOARD_PORT:-9080}"
+VUE_URL="https://unpkg.com/vue@3/dist/vue.global.prod.js"
+
+install_dashboard() {
+  info "Installing GridLib dashboard..."
+
+  # Install nginx if missing
+  if ! command -v nginx >/dev/null 2>&1; then
+    info "Installing nginx..."
+    apt install -y --no-install-recommends nginx
   fi
 
-  if zim_present && service_is_active; then
-    info "Kiwix is running on port ${KIWIX_PORT} (serving ZIMs from ${ZIM_DIR})."
+  # Copy dashboard files
+  mkdir -p "${DASHBOARD_DEST}"
+  cp "${DASHBOARD_SRC}/index.html"           "${DASHBOARD_DEST}/index.html"
+  cp "${DASHBOARD_SRC}/generate-status.py"   "${DASHBOARD_DEST}/generate-status.py"
+  chmod +x "${DASHBOARD_DEST}/generate-status.py"
+
+  # Download Vue.js for offline use
+  if [[ ! -f "${DASHBOARD_DEST}/vue.global.prod.js" ]]; then
+    info "Downloading Vue.js (offline use)..."
+    ensure_curl
+    curl -fsSL "${VUE_URL}" -o "${DASHBOARD_DEST}/vue.global.prod.js"
   else
-    info "Kiwix is not running yet (it requires at least one .zim in ${ZIM_DIR})."
+    info "Vue.js already present, skipping download."
   fi
-fi
+
+  # Generate initial status.json before starting the daemon
+  if [[ ! -f "${DASHBOARD_DEST}/status.json" ]]; then
+    info "Generating initial status snapshot..."
+    ZIM_DIR="${ZIM_DIR}" timeout 3 python3 "${DASHBOARD_DEST}/generate-status.py" 2>/dev/null || true
+  fi
+
+  # nginx site config
+  cat >/etc/nginx/sites-available/gridlib <<EOF
+server {
+    listen ${DASHBOARD_PORT};
+    server_name _;
+
+    root ${DASHBOARD_DEST};
+    index index.html;
+
+    location = /status.json {
+        add_header Cache-Control "no-store";
+        add_header Pragma "no-cache";
+        etag off;
+    }
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+EOF
+
+  ln -sf /etc/nginx/sites-available/gridlib /etc/nginx/sites-enabled/gridlib
+
+  # Remove default nginx site to avoid port conflicts
+  rm -f /etc/nginx/sites-enabled/default
+
+  nginx -t && systemctl reload nginx || systemctl restart nginx
+  systemctl enable nginx >/dev/null
+
+  # Systemd service for the status generator daemon
+  cat >/etc/systemd/system/gridlib-status.service <<EOF
+[Unit]
+Description=GridLib status generator
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 ${DASHBOARD_DEST}/generate-status.py
+Environment=ZIM_DIR=${ZIM_DIR}
+Environment=GRIDLIB_INTERVAL=15
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable gridlib-status >/dev/null
+  systemctl restart gridlib-status
+
+  info "Dashboard installed!"
+  info "  URL: http://10.3.141.1:${DASHBOARD_PORT}"
+}
+
+install_dashboard
