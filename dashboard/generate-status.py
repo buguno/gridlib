@@ -9,6 +9,7 @@ from pathlib import Path
 
 OUTPUT = Path(__file__).parent / "status.json"
 ZIM_DIR = Path(os.environ.get("ZIM_DIR", "/srv/kiwix/content"))
+MAPS_DIR = Path(os.environ.get("MAPS_DIR", "/srv/gridlib/maps"))
 INTERVAL = int(os.environ.get("GRIDLIB_INTERVAL", 15))
 
 
@@ -93,6 +94,13 @@ def zim_files() -> list[str]:
         return []
 
 
+def map_files() -> list[str]:
+    try:
+        return sorted(f.name for f in MAPS_DIR.glob("*.pmtiles"))
+    except Exception:
+        return []
+
+
 def get_status() -> dict:
     return {
         "cpu_percent": cpu_percent(),
@@ -103,6 +111,7 @@ def get_status() -> dict:
             "kiwix": {"active": service_active("kiwix-serve"), "port": 8080},
         },
         "zims": zim_files(),
+        "maps": map_files(),
     }
 
 

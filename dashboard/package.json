@@ -15,6 +15,9 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "maplibre-gl": "^5.23.0",
+    "pmtiles": "^4.4.1",
+    "protomaps-themes-base": "^4.5.0",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },

@@ -18,4 +18,5 @@ export interface SystemStatus {
     }
   }
   zims: string[]
+  maps: string[]
 }
