@@ -180,10 +180,44 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DASHBOARD_SRC="${SCRIPT_DIR}/dashboard"
 DASHBOARD_DEST="/opt/gridlib/dashboard"
 DASHBOARD_PORT="${DASHBOARD_PORT:-9080}"
-VUE_URL="https://unpkg.com/vue@3/dist/vue.global.prod.js"
+NVM_DIR="${HOME}/.nvm"
+
+load_nvm() {
+  export NVM_DIR="${NVM_DIR}"
+  # shellcheck source=/dev/null
+  . "${NVM_DIR}/nvm.sh"
+}
+
+install_node() {
+  if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
+    info "nvm already installed, loading..."
+    load_nvm
+  else
+    info "Installing nvm..."
+    ensure_curl
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    load_nvm
+  fi
+
+  if command -v node >/dev/null 2>&1; then
+    info "Node.js already installed: $(node -v)"
+  else
+    info "Installing Node.js 24..."
+    nvm install 24
+  fi
+
+  if ! command -v yarn >/dev/null 2>&1; then
+    info "Enabling Yarn via corepack..."
+    corepack enable yarn
+  fi
+
+  info "Node $(node -v) · Yarn $(yarn -v)"
+}
 
 install_dashboard() {
   info "Installing GridLib dashboard..."
+
+  install_node
 
   # Install nginx if missing
   if ! command -v nginx >/dev/null 2>&1; then
@@ -191,20 +225,20 @@ install_dashboard() {
     apt install -y --no-install-recommends nginx
   fi
 
-  # Copy dashboard files
-  mkdir -p "${DASHBOARD_DEST}"
-  cp "${DASHBOARD_SRC}/index.html"           "${DASHBOARD_DEST}/index.html"
-  cp "${DASHBOARD_SRC}/generate-status.py"   "${DASHBOARD_DEST}/generate-status.py"
-  chmod +x "${DASHBOARD_DEST}/generate-status.py"
+  # Build the Vue project on the Pi
+  info "Building dashboard (this may take a minute)..."
+  (
+    cd "${DASHBOARD_SRC}"
+    load_nvm
+    yarn install --frozen-lockfile
+    yarn build
+  )
 
-  # Download Vue.js for offline use
-  if [[ ! -f "${DASHBOARD_DEST}/vue.global.prod.js" ]]; then
-    info "Downloading Vue.js (offline use)..."
-    ensure_curl
-    curl -fsSL "${VUE_URL}" -o "${DASHBOARD_DEST}/vue.global.prod.js"
-  else
-    info "Vue.js already present, skipping download."
-  fi
+  # Copy built dist and the status generator
+  mkdir -p "${DASHBOARD_DEST}"
+  cp -r "${DASHBOARD_SRC}/dist/." "${DASHBOARD_DEST}/"
+  cp "${DASHBOARD_SRC}/generate-status.py" "${DASHBOARD_DEST}/generate-status.py"
+  chmod +x "${DASHBOARD_DEST}/generate-status.py"
 
   # Generate initial status.json before starting the daemon
   if [[ ! -f "${DASHBOARD_DEST}/status.json" ]]; then
