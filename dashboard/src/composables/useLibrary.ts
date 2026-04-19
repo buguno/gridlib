@@ -51,6 +51,16 @@ export function useLibrary() {
     await fetchDownloads()
   }
 
+  async function uninstall(filename: string, kind: string) {
+    await fetch('/api/file', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, kind }),
+    })
+    await fetchCollections()
+    await fetchDownloads()
+  }
+
   function isInstalled(filename: string): boolean {
     return Object.values(installed.value).flat().includes(filename)
   }
@@ -67,5 +77,5 @@ export function useLibrary() {
   })
   onUnmounted(() => clearInterval(timer))
 
-  return { collections, installed, downloads, loading, error, install, cancel, isInstalled, downloadState }
+  return { collections, installed, downloads, loading, error, install, cancel, uninstall, isInstalled, downloadState }
 }
