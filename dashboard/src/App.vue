@@ -24,6 +24,7 @@ const { error, lastUpdate } = statusData
       <nav class="nav">
         <RouterLink to="/" class="nav-link">Dashboard</RouterLink>
         <RouterLink to="/library" class="nav-link">Library</RouterLink>
+        <RouterLink to="/maps" class="nav-link">Maps</RouterLink>
         <RouterLink to="/setup" class="nav-link">Setup</RouterLink>
       </nav>
 

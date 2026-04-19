@@ -30,7 +30,11 @@ function btnState(resource: CollectionResource, kind: string): 'install' | 'down
 }
 
 function onInstall(resource: CollectionResource, kind: string) {
-  install(resource.url, resource.filename, kind, resource.size_mb)
+  if (resource.url) install(resource.url, resource.filename, kind, resource.size_mb)
+}
+
+function hasDirectDownload(resource: CollectionResource): boolean {
+  return !!resource.url
 }
 </script>
 
@@ -81,8 +85,18 @@ function onInstall(resource: CollectionResource, kind: string) {
               </div>
             </div>
 
-            <!-- Action buttons -->
-            <div class="btn-group">
+            <!-- Extract-only: show CLI command, no download button -->
+            <div class="btn-group" v-if="!hasDirectDownload(r) && r.extract">
+              <div v-if="isInstalled(r.filename)">
+                <button class="btn-action uninstall" @click="uninstall(r.filename, col.type)">Uninstall</button>
+              </div>
+              <div v-else class="extract-cmd" :title="r.extract.cmd">
+                <span class="extract-label">Manual install</span>
+              </div>
+            </div>
+
+            <!-- Action buttons (direct download) -->
+            <div class="btn-group" v-else>
               <button
                 v-if="btnState(r, col.type) === 'installed'"
                 class="btn-action uninstall"
@@ -271,6 +285,21 @@ function onInstall(resource: CollectionResource, kind: string) {
 
 .btn-group {
   flex-shrink: 0;
+}
+
+.extract-cmd {
+  display: flex;
+  align-items: center;
+}
+
+.extract-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.4rem 0.875rem;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  white-space: nowrap;
 }
 
 /* States */

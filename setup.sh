@@ -197,6 +197,12 @@ server {
         proxy_read_timeout 10s;
     }
 
+    location /maps/ {
+        alias /srv/gridlib/maps/;
+        add_header Access-Control-Allow-Origin "*";
+        add_header Accept-Ranges bytes;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }

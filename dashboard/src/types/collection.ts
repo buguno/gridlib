@@ -1,12 +1,19 @@
+export interface ExtractSpec {
+  source: string
+  bbox: string
+  cmd: string
+}
+
 export interface CollectionResource {
   id: string
   version: string
   title: string
   description: string
-  url: string
+  url?: string
   filename: string
   size_mb: number
   recommended: boolean
+  extract?: ExtractSpec
 }
 
 export interface CollectionCategory {
