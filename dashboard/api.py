@@ -147,6 +147,19 @@ def cancel_download(filename: str) -> bool:
     return False
 
 
+def uninstall_file(filename: str, kind: str) -> bool:
+    dest = DEST_DIRS.get(kind, DEST_DIRS["kiwix"]) / filename
+    try:
+        dest.unlink()
+    except FileNotFoundError:
+        return False
+    with _lock:
+        _downloads.pop(filename, None)
+    if kind == "kiwix":
+        _restart_kiwix()
+    return True
+
+
 # ── HTTP handler ──────────────────────────────────────────────────────────────
 
 CORS = {
@@ -217,14 +230,25 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path.rstrip("/")
+        body = self._body()
 
         if path == "/download":
-            body = self._body()
             filename = body.get("filename", "")
             if cancel_download(filename):
                 self._send({"status": "cancelled", "filename": filename})
             else:
                 self._send({"error": "download not found"}, 404)
+
+        elif path == "/file":
+            filename = body.get("filename", "")
+            kind = body.get("kind", "kiwix")
+            if not filename:
+                self._send({"error": "filename is required"}, 400)
+                return
+            if uninstall_file(filename, kind):
+                self._send({"status": "uninstalled", "filename": filename})
+            else:
+                self._send({"error": "file not found"}, 404)
 
         else:
             self._send({"error": "not found"}, 404)

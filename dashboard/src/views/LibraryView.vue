@@ -2,7 +2,7 @@
 import { useLibrary } from '@/composables/useLibrary'
 import type { CollectionResource } from '@/types/collection'
 
-const { collections, loading, error, install, cancel, isInstalled, downloadState } = useLibrary()
+const { collections, loading, error, install, cancel, uninstall, isInstalled, downloadState } = useLibrary()
 
 function formatSize(mb: number): string {
   if (mb >= 1000) return (mb / 1000).toFixed(1) + ' GB'
@@ -81,18 +81,27 @@ function onInstall(resource: CollectionResource, kind: string) {
               </div>
             </div>
 
-            <!-- Action button -->
-            <button
-              class="btn-action"
-              :class="btnState(r, col.type)"
-              :disabled="btnState(r, col.type) === 'installed' || btnState(r, col.type) === 'downloading'"
-              @click="btnState(r, col.type) === 'downloading' ? cancel(r.filename) : onInstall(r, col.type)"
-            >
-              <span v-if="btnState(r, col.type) === 'installed'">✓ Installed</span>
-              <span v-else-if="btnState(r, col.type) === 'downloading'">✕ Cancel</span>
-              <span v-else-if="btnState(r, col.type) === 'error'">Retry</span>
-              <span v-else>Install</span>
-            </button>
+            <!-- Action buttons -->
+            <div class="btn-group">
+              <button
+                v-if="btnState(r, col.type) === 'installed'"
+                class="btn-action uninstall"
+                @click="uninstall(r.filename, col.type)"
+              >
+                Uninstall
+              </button>
+              <button
+                v-else
+                class="btn-action"
+                :class="btnState(r, col.type)"
+                :disabled="btnState(r, col.type) === 'downloading'"
+                @click="btnState(r, col.type) === 'downloading' ? cancel(r.filename) : onInstall(r, col.type)"
+              >
+                <span v-if="btnState(r, col.type) === 'downloading'">✕ Cancel</span>
+                <span v-else-if="btnState(r, col.type) === 'error'">Retry</span>
+                <span v-else>Install</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -247,6 +256,21 @@ function onInstall(resource: CollectionResource, kind: string) {
   background: transparent;
   border-color: var(--orange);
   color: var(--orange);
+}
+
+.btn-action.uninstall {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.btn-action.uninstall:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btn-group {
+  flex-shrink: 0;
 }
 
 /* States */
