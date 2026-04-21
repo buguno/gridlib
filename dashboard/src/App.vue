@@ -219,12 +219,23 @@ function toggle() {
   min-height: 52px;
 }
 
+.collapsed .sidebar-bottom {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.625rem;
+}
+
 .live-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
   flex: 1;
+}
+
+.collapsed .live-row {
+  flex: unset;
+  justify-content: center;
 }
 
 .live-dot-wrap {
