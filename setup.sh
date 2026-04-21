@@ -88,6 +88,27 @@ ensure_curl() {
   fi
 }
 
+install_pmtiles() {
+  if command -v pmtiles >/dev/null 2>&1; then
+    info "pmtiles already installed."
+    return
+  fi
+  info "Installing pmtiles CLI..."
+  ensure_curl
+  local version="1.22.3"
+  local arch
+  case "$(uname -m)" in
+    aarch64|arm64) arch="arm64" ;;
+    armv7l|armv6l) arch="arm"   ;;
+    x86_64)        arch="x86_64" ;;
+    *) die "Unsupported architecture for pmtiles: $(uname -m)" ;;
+  esac
+  curl -fsSL "https://github.com/protomaps/go-pmtiles/releases/download/v${version}/go-pmtiles_${version}_Linux_${arch}.tar.gz" \
+    | tar xz -C /usr/local/bin pmtiles
+  chmod +x /usr/local/bin/pmtiles
+  info "pmtiles installed."
+}
+
 
 setup_kiwix_systemd_service
 
@@ -143,6 +164,7 @@ install_dashboard() {
   info "Installing GridLib dashboard..."
 
   install_node
+  install_pmtiles
 
   # Install nginx if missing
   if ! command -v nginx >/dev/null 2>&1; then
