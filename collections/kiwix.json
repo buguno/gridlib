@@ -50,23 +50,23 @@
       "description": "General reference and encyclopedias.",
       "resources": [
         {
-          "id": "wikipedia_en_simple_all_mini",
-          "version": "2024-06",
-          "title": "Wikipedia (Simple English)",
+          "id": "wikipedia_en_all_mini",
+          "version": "2026-03",
+          "title": "Wikipedia (English)",
           "description": "Simplified Wikipedia — ideal for resource-constrained devices.",
-          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_simple_all_mini_2024-06.zim",
-          "filename": "wikipedia_en_simple_all_mini_2024-06.zim",
-          "size_mb": 1000,
+          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_en_all_mini_2026-03.zim",
+          "filename": "wikipedia_en_all_mini_2026-03.zim",
+          "size_mb": 12000,
           "recommended": true
         },
         {
           "id": "wikipedia_pt_all_mini",
-          "version": "2024-06",
+          "version": "2026-02",
           "title": "Wikipedia (Português)",
           "description": "Wikipedia em português — versão compacta.",
-          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_pt_all_mini_2024-06.zim",
-          "filename": "wikipedia_pt_all_mini_2024-06.zim",
-          "size_mb": 1200,
+          "url": "https://download.kiwix.org/zim/wikipedia/wikipedia_pt_all_mini_2026-02.zim",
+          "filename": "wikipedia_pt_all_mini_2026-02.zim",
+          "size_mb": 1700,
           "recommended": true
         },
         {
@@ -76,8 +76,8 @@
           "description": "Complete Bitcoin documentation and guides.",
           "url": "https://download.kiwix.org/zim/other/bitcoin_en_all_maxi_2021-03.zim",
           "filename": "bitcoin_en_all_maxi_2021-03.zim",
-          "size_mb": 50,
-          "recommended": false
+          "size_mb": 17,
+          "recommended": true
         }
       ]
     },
