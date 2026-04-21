@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue'
-import type { Collection, DownloadState } from '@/types/collection'
+import type { Collection, DownloadState, ExtractSpec } from '@/types/collection'
 
 export function useLibrary() {
   const collections = ref<Collection[]>([])
@@ -33,11 +33,11 @@ export function useLibrary() {
     }
   }
 
-  async function install(url: string, filename: string, kind: string, size_mb: number) {
+  async function install(url: string | undefined, filename: string, kind: string, size_mb: number, extract?: ExtractSpec) {
     await fetch('/api/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, filename, kind, size_mb }),
+      body: JSON.stringify({ url, filename, kind, size_mb, extract }),
     })
     await fetchDownloads()
   }
