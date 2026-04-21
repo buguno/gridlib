@@ -96,7 +96,7 @@ function onInstall(resource: CollectionResource, kind: string) {
                 v-else
                 class="btn-action"
                 :class="btnState(r, col.type)"
-                @click="btnState(r, col.type) === 'downloading' ? cancel(r.filename) : onInstall(r, col.type)"
+                @click="['downloading', 'queued'].includes(btnState(r, col.type)) ? cancel(r.filename) : onInstall(r, col.type)"
               >
                 <span v-if="btnState(r, col.type) === 'downloading'">✕ Cancel</span>
                 <span v-else-if="btnState(r, col.type) === 'queued'">✕ Remove</span>
