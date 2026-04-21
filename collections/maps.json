@@ -9,55 +9,27 @@
       "name": "South America",
       "slug": "south-america",
       "icon": "🌎",
-      "description": "Generate with: pmtiles extract https://build.protomaps.com/20241001.pmtiles <country>.pmtiles --bbox=<lon_min,lat_min,lon_max,lat_max>",
+      "description": "Extracted from the Protomaps planet build via HTTP range requests.",
       "resources": [
         {
           "id": "brazil",
-          "version": "2024-10",
+          "version": "2026-04",
           "title": "Brazil",
           "description": "Full topographic map of Brazil (OSM via Protomaps).",
-          "filename": "brazil_2024-10.pmtiles",
+          "filename": "brazil_2026-04.pmtiles",
           "size_mb": 1800,
           "recommended": true,
           "extract": {
-            "source": "https://build.protomaps.com/20241001.pmtiles",
+            "source": "https://build.protomaps.com/20260415.pmtiles",
             "bbox": "-73.98,-33.75,-34.73,5.27",
-            "cmd": "pmtiles extract https://build.protomaps.com/20241001.pmtiles brazil_2024-10.pmtiles --bbox=-73.98,-33.75,-34.73,5.27"
-          }
-        },
-        {
-          "id": "argentina",
-          "version": "2024-10",
-          "title": "Argentina",
-          "description": "Full topographic map of Argentina.",
-          "filename": "argentina_2024-10.pmtiles",
-          "size_mb": 900,
-          "recommended": false,
-          "extract": {
-            "source": "https://build.protomaps.com/20241001.pmtiles",
-            "bbox": "-73.58,-55.06,-53.63,-21.78",
-            "cmd": "pmtiles extract https://build.protomaps.com/20241001.pmtiles argentina_2024-10.pmtiles --bbox=-73.58,-55.06,-53.63,-21.78"
-          }
-        },
-        {
-          "id": "colombia",
-          "version": "2024-10",
-          "title": "Colombia",
-          "description": "Full topographic map of Colombia.",
-          "filename": "colombia_2024-10.pmtiles",
-          "size_mb": 600,
-          "recommended": false,
-          "extract": {
-            "source": "https://build.protomaps.com/20241001.pmtiles",
-            "bbox": "-79.0,-4.23,-66.87,13.39",
-            "cmd": "pmtiles extract https://build.protomaps.com/20241001.pmtiles colombia_2024-10.pmtiles --bbox=-79.0,-4.23,-66.87,13.39"
+            "cmd": "pmtiles extract https://build.protomaps.com/20260415.pmtiles brazil_2026-04.pmtiles --bbox=-73.98,-33.75,-34.73,5.27"
           }
         }
       ]
     },
     {
-      "name": "North America",
-      "slug": "north-america",
+      "name": "United States",
+      "slug": "united-states",
       "icon": "🗺️",
       "description": "Pre-built PMTiles for US states, available for direct download.",
       "resources": [
