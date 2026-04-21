@@ -79,7 +79,7 @@ def _restart_kiwix() -> None:
         pass
 
 
-def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
+def start_download(url: str | None, filename: str, kind: str, size_mb: float, extract: dict | None = None) -> None:
     dest_dir = DEST_DIRS.get(kind, DEST_DIRS["kiwix"])
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / filename
@@ -97,11 +97,15 @@ def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
 
     def run():
         try:
-            proc = subprocess.Popen(
-                ["curl", "-L", "--continue-at", "-", "-o", str(dest), url],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            if extract:
+                cmd = [
+                    "pmtiles", "extract", extract["source"], str(dest),
+                    f"--bbox={extract['bbox']}",
+                ]
+            else:
+                cmd = ["curl", "-L", "--continue-at", "-", "-o", str(dest), url]
+
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             with _lock:
                 _procs[filename] = proc
 
@@ -114,14 +118,15 @@ def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
 
             with _lock:
                 _procs.pop(filename, None)
-                if filename in _downloads:
+                state = _downloads.get(filename)
+                if state and state["status"] != "cancelled":
                     if proc.returncode == 0:
-                        _downloads[filename]["status"] = "complete"
-                        _downloads[filename]["percent"] = 100
+                        state["status"] = "complete"
+                        state["percent"] = 100
                     else:
-                        _downloads[filename]["status"] = "error"
-                        _downloads[filename]["error"] = (
-                            f"curl exited with code {proc.returncode}"
+                        state["status"] = "error"
+                        state["error"] = (
+                            f"{'pmtiles' if extract else 'curl'} exited with code {proc.returncode}"
                         )
 
             if proc.returncode == 0 and kind == "kiwix":
@@ -139,12 +144,20 @@ def start_download(url: str, filename: str, kind: str, size_mb: float) -> None:
 def cancel_download(filename: str) -> bool:
     with _lock:
         proc = _procs.get(filename)
+        state = _downloads.get(filename)
+        if not state:
+            return False
+        kind = state.get("kind", "kiwix")
         if proc:
             proc.terminate()
-        if filename in _downloads:
-            _downloads[filename]["status"] = "cancelled"
-            return True
-    return False
+        state["status"] = "cancelled"
+    # Remove partial file after process is killed
+    dest = DEST_DIRS.get(kind, DEST_DIRS["kiwix"]) / filename
+    try:
+        dest.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return True
 
 
 def uninstall_file(filename: str, kind: str) -> bool:
@@ -213,16 +226,17 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/download":
             body = self._body()
-            url = body.get("url", "")
+            url = body.get("url") or None
             filename = body.get("filename", "")
             kind = body.get("kind", "kiwix")
             size_mb = float(body.get("size_mb", 0))
+            extract = body.get("extract") or None
 
-            if not url or not filename:
-                self._send({"error": "url and filename are required"}, 400)
+            if not filename or (not url and not extract):
+                self._send({"error": "filename and either url or extract are required"}, 400)
                 return
 
-            start_download(url, filename, kind, size_mb)
+            start_download(url, filename, kind, size_mb, extract)
             self._send({"status": "started", "filename": filename})
 
         else:
