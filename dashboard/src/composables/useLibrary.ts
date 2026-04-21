@@ -1,5 +1,8 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, type InjectionKey } from 'vue'
 import type { Collection, DownloadState, ExtractSpec } from '@/types/collection'
+
+export type LibraryData = ReturnType<typeof useLibrary>
+export const LibraryKey: InjectionKey<LibraryData> = Symbol('library')
 
 export function useLibrary() {
   const collections = ref<Collection[]>([])

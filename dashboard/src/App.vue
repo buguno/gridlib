@@ -2,10 +2,14 @@
 import { provide } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import { useStatus, StatusKey } from '@/composables/useStatus'
+import { useLibrary, LibraryKey } from '@/composables/useLibrary'
 import { formatTime } from '@/utils/colors'
 
 const statusData = useStatus()
 provide(StatusKey, statusData)
+
+const libraryData = useLibrary()
+provide(LibraryKey, libraryData)
 
 const { error, lastUpdate } = statusData
 </script>
