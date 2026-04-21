@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useLibrary } from '@/composables/useLibrary'
+import { inject } from 'vue'
+import { LibraryKey } from '@/composables/useLibrary'
 import type { CollectionResource } from '@/types/collection'
 
-const { collections, loading, error, install, cancel, uninstall, isInstalled, downloadState } = useLibrary()
+const { collections, loading, error, install, cancel, uninstall, isInstalled, downloadState } = inject(LibraryKey)!
 
 function formatSize(mb: number): string {
   if (mb >= 1000) return (mb / 1000).toFixed(1) + ' GB'
@@ -19,10 +20,11 @@ function statusLabel(filename: string): string {
   return ''
 }
 
-function btnState(resource: CollectionResource, kind: string): 'install' | 'downloading' | 'installed' | 'error' {
+function btnState(resource: CollectionResource, kind: string): 'install' | 'queued' | 'downloading' | 'installed' | 'error' {
   if (isInstalled(resource.filename)) return 'installed'
   const s = downloadState(resource.filename)
   if (!s) return 'install'
+  if (s.status === 'queued') return 'queued'
   if (s.status === 'downloading') return 'downloading'
   if (s.status === 'complete') return 'installed'
   if (s.status === 'error') return 'error'
@@ -94,10 +96,10 @@ function onInstall(resource: CollectionResource, kind: string) {
                 v-else
                 class="btn-action"
                 :class="btnState(r, col.type)"
-                :disabled="btnState(r, col.type) === 'downloading'"
                 @click="btnState(r, col.type) === 'downloading' ? cancel(r.filename) : onInstall(r, col.type)"
               >
                 <span v-if="btnState(r, col.type) === 'downloading'">✕ Cancel</span>
+                <span v-else-if="btnState(r, col.type) === 'queued'">✕ Remove</span>
                 <span v-else-if="btnState(r, col.type) === 'error'">Retry</span>
                 <span v-else>Install</span>
               </button>
@@ -244,6 +246,14 @@ function onInstall(resource: CollectionResource, kind: string) {
 }
 
 .btn-action.downloading:hover { background: rgba(239,68,68,.1); }
+
+.btn-action.queued {
+  background: transparent;
+  border-color: var(--muted);
+  color: var(--muted);
+}
+
+.btn-action.queued:hover { background: rgba(255,255,255,.05); }
 
 .btn-action.installed {
   background: rgba(16,185,129,.1);

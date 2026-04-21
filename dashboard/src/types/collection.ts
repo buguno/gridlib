@@ -34,7 +34,7 @@ export interface Collection {
 }
 
 export interface DownloadState {
-  status: 'downloading' | 'complete' | 'error' | 'cancelled' | 'pending'
+  status: 'queued' | 'downloading' | 'complete' | 'error' | 'cancelled' | 'pending'
   percent: number
   size_mb: number
   downloaded_mb: number

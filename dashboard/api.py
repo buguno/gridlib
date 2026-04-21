@@ -3,6 +3,7 @@
 
 import json
 import os
+import queue
 import subprocess
 import threading
 import time
@@ -24,6 +25,7 @@ DEST_DIRS = {
 _downloads: dict = {}
 _lock = threading.Lock()
 _procs: dict = {}  # filename → subprocess.Popen
+_queue: queue.Queue = queue.Queue()  # queued download jobs
 
 
 # ── Collections ───────────────────────────────────────────────────────────────
@@ -79,66 +81,76 @@ def _restart_kiwix() -> None:
         pass
 
 
-def start_download(url: str | None, filename: str, kind: str, size_mb: float, extract: dict | None = None) -> None:
+def _run_job(url: str | None, filename: str, kind: str, size_mb: float, extract: dict | None) -> None:
     dest_dir = DEST_DIRS.get(kind, DEST_DIRS["kiwix"])
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / filename
 
     with _lock:
-        if filename in _downloads and _downloads[filename]["status"] == "downloading":
+        state = _downloads.get(filename)
+        if not state or state["status"] == "cancelled":
+            return
+        state["status"] = "downloading"
+
+    try:
+        if extract:
+            cmd = ["pmtiles", "extract", extract["source"], str(dest), f"--bbox={extract['bbox']}"]
+        else:
+            cmd = ["curl", "-L", "--continue-at", "-", "-o", str(dest), url]
+
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with _lock:
+            _procs[filename] = proc
+
+        tracker = threading.Thread(
+            target=_track_progress, args=(filename, size_mb, dest), daemon=True
+        )
+        tracker.start()
+        proc.wait()
+
+        with _lock:
+            _procs.pop(filename, None)
+            state = _downloads.get(filename)
+            if state and state["status"] not in ("cancelled",):
+                if proc.returncode == 0:
+                    state["status"] = "complete"
+                    state["percent"] = 100
+                else:
+                    state["status"] = "error"
+                    state["error"] = f"{'pmtiles' if extract else 'curl'} exited with code {proc.returncode}"
+
+        if proc.returncode == 0 and kind == "kiwix":
+            _restart_kiwix()
+
+    except Exception as e:
+        with _lock:
+            if filename in _downloads:
+                _downloads[filename]["status"] = "error"
+                _downloads[filename]["error"] = str(e)
+
+
+def _queue_worker() -> None:
+    while True:
+        job = _queue.get()
+        try:
+            _run_job(**job)
+        finally:
+            _queue.task_done()
+
+
+def start_download(url: str | None, filename: str, kind: str, size_mb: float, extract: dict | None = None) -> None:
+    with _lock:
+        existing = _downloads.get(filename, {}).get("status")
+        if existing in ("downloading", "queued"):
             return
         _downloads[filename] = {
-            "status": "downloading",
+            "status": "queued",
             "percent": 0,
             "size_mb": size_mb,
             "downloaded_mb": 0,
             "kind": kind,
         }
-
-    def run():
-        try:
-            if extract:
-                cmd = [
-                    "pmtiles", "extract", extract["source"], str(dest),
-                    f"--bbox={extract['bbox']}",
-                ]
-            else:
-                cmd = ["curl", "-L", "--continue-at", "-", "-o", str(dest), url]
-
-            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            with _lock:
-                _procs[filename] = proc
-
-            tracker = threading.Thread(
-                target=_track_progress, args=(filename, size_mb, dest), daemon=True
-            )
-            tracker.start()
-
-            proc.wait()
-
-            with _lock:
-                _procs.pop(filename, None)
-                state = _downloads.get(filename)
-                if state and state["status"] != "cancelled":
-                    if proc.returncode == 0:
-                        state["status"] = "complete"
-                        state["percent"] = 100
-                    else:
-                        state["status"] = "error"
-                        state["error"] = (
-                            f"{'pmtiles' if extract else 'curl'} exited with code {proc.returncode}"
-                        )
-
-            if proc.returncode == 0 and kind == "kiwix":
-                _restart_kiwix()
-
-        except Exception as e:
-            with _lock:
-                if filename in _downloads:
-                    _downloads[filename]["status"] = "error"
-                    _downloads[filename]["error"] = str(e)
-
-    threading.Thread(target=run, daemon=True).start()
+    _queue.put({"url": url, "filename": filename, "kind": kind, "size_mb": size_mb, "extract": extract})
 
 
 def cancel_download(filename: str) -> bool:
@@ -271,6 +283,8 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     for dest in DEST_DIRS.values():
         dest.mkdir(parents=True, exist_ok=True)
+
+    threading.Thread(target=_queue_worker, daemon=True).start()
 
     server = HTTPServer(("127.0.0.1", PORT), Handler)
     print(f"GridLib API → http://127.0.0.1:{PORT}")
